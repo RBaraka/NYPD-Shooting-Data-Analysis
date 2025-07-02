@@ -20,3 +20,16 @@ library(tidyverse)
 library(lubridate)
 library(forecast)
 library(ggplot2)
+```
+## Data Source
+- NYPD Shooting Incident Data (Historic)
+
+## Presentation
+- The presentation video walks through the findings in 10 minutes.
+
+## Instructions
+- To reproduce the report:
+	1.	Clone the repo
+	2.	Open Shooting-in-NYPD.Rmd in RStudio
+	3.	Install any missing packages
+	4.	Knit the document to HTML
