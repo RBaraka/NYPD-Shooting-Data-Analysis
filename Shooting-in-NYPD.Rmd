@@ -1,0 +1,296 @@
+---
+title: "Shooting Incident Trends in New York"
+author: "RB"
+date: "2025-06-16"
+output: html_document
+---
+```{r set_up, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  results = 'markup',
+  message = FALSE,
+  warning = FALSE 
+)
+```
+## Dataset overview
+
+This analysis examines the data from **NYPD Shooting Incident Data (Historic)**, which is provided by the New York City Police Department (NYPD). You can access the data from [Data.gov](https://catalog.data.gov/dataset/nypd-shooting-incident-data-historic). The analysis will focus on incident patterns regarding victim demographics and temporal patterns.
+
+## Key Concepts
+  1. Importing and cleaning data
+  2. Demographic analysis - identifying victim age and gender distributions
+  3. Temporal patterns - identifying day-of-week effects and forecasting trends.
+  4. Statistical testing - Using ANOVA to confirm statistical significance.
+
+## Data Overview
+The Data from **NYPD Shooting Incident Data (Historic)** includes incident timing, location, and demographic information for victims and perpetrators.
+  
+### Research Questions
+1. What are the demographics of victims
+  - By gender
+  - By age group
+2. Do incidents occurring follow a pattern based on day of the week or month?
+
+## Step 1: Importing the raw data. 
+This data is hosted as a csv file on NYC open data
+
+```{r load_and_import, results='hide'}
+#libraries needed
+library(tidyverse)
+library(janitor)
+library(lubridate)
+library(ggplot2)
+
+#First, lets import the data
+url = "https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv?accessType=DOWNLOAD"
+shooting_data = read_csv(url)
+```
+```{r glimpse_raw_data}
+# Preview the data
+head(shooting_data)
+```
+
+## Step 2:  **Cleaning** the data (making it tidy)
+We'll standardize column names, convert dates to proper formatting, and select relevant variables.
+
+```{r Cleaning}
+
+# column names to all lower case
+cleaned_data = shooting_data %>%
+      clean_names()
+
+# convert date from string to data using lubridate
+cleaned_data <- cleaned_data %>%
+  mutate(occur_date = mdy(occur_date))
+
+# select columns of interest only 
+selected_data <- cleaned_data %>%
+  select(
+    occur_date,
+    boro,
+    vic_age_group,
+    vic_sex,
+    vic_race,
+    perp_age_group,
+    perp_sex,
+    perp_race,
+    statistical_murder_flag
+  )
+
+# add time and day columns
+selected_data <- selected_data %>%
+  mutate(
+    year = year(occur_date),
+    day_of_week = wday(occur_date, label = TRUE)
+  )
+
+# preview data
+head(selected_data) 
+```
+
+## Step 3: Victim Demoghraphics
+  
+### Data Quality Check 
+**Checking** data for duplicates, unique , or missing information.
+```{r checking_data}
+# select columns of interest
+victim_demo <- cleaned_data %>%
+  select(vic_age_group, vic_sex)
+
+# unique characters in age & gender
+unique(victim_demo$vic_age_group)
+unique(victim_demo$vic_sex)
+```
+
+### Distribution of Categories
+lets **check on the counts** of each of those found unique charcaters. 
+```{r check_counts}
+# Count full distribution of age groups
+cleaned_data %>%
+  count(vic_age_group) %>%
+  arrange(desc(n))
+
+# Count full distribution of sex
+cleaned_data %>%
+  count(vic_sex) %>%
+  arrange(desc(n))
+```
+### Clean Demographic data  
+**remove the unknown** data:  As shown above, there are multiple unknowns and 1 typo.
+```{r remove_unknown_from_age_gender}
+# Filter and clean victim demographic data for plotting
+victim_filtered_data <- cleaned_data %>%
+  filter(
+    vic_age_group %in% c("<18", "18-24", "25-44", "45-64", "65+"),
+    vic_sex %in% c("M", "F")
+  ) %>%
+  select(vic_age_group, vic_sex)
+# Check your work
+head(victim_filtered_data)
+```
+
+### Age Group Distribution
+**Bar graph** to show the distribution of victim age groups.
+  
+```{r bar_plot_for_victim_age}
+
+ggplot(victim_filtered_data, aes(x = vic_age_group)) +
+  geom_bar(fill = "steelblue") +
+  geom_text(stat = "count", aes(label = ..count..), vjust = -0.3, size = 4) +
+  labs(
+    title = "Victim Age Group Distribution",
+    x = "Age Group",
+    y = "Count"
+  ) +
+  theme_minimal()
+```
+
+### Gender Distribution
+**Pie chart** for victim gender 
+```{r pie_chart_for_victim_gender}
+# Summarize counts and compute percentages
+gender_counts <- victim_filtered_data %>%
+  count(vic_sex) %>%
+  mutate(percent = round(n / sum(n) * 100, 1),
+         label = paste0(percent, "%"))
+
+# Plot
+ggplot(gender_counts, aes(x = "", y = n, fill = vic_sex)) +
+  geom_col(width = 1) +
+  coord_polar(theta = "y") +
+  geom_text(aes(label = label), position = position_stack(vjust = 0.5)) +
+  labs(
+    title = "Victim Gender Distribution",
+    fill = "Gender"
+  ) +
+  theme_void()
+```
+
+## Step 4: Time series  Model
+  
+### Data preparation
+We'll create a daily dataset to analyze temporal patterns.
+  
+```{r filter_and_clean}
+# STEP 1: Drop missing dates and select distinct incident per date
+incident_counts <- cleaned_data %>%
+  filter(!is.na(occur_date)) %>%
+  distinct(incident_key, occur_date) %>%  # only unique incidents
+  count(occur_date)  # count how many unique incidents per day
+
+# STEP 2: Generate complete date range
+min_date <- min(incident_counts$occur_date)
+max_date <- max(incident_counts$occur_date)
+
+full_dates <- tibble(occur_date = seq.Date(from = min_date, to = max_date, by = "day"))
+
+# STEP 3: Fill in missing dates with zero incidents
+incident_daily <- full_dates %>%
+  left_join(incident_counts, by = "occur_date") %>%
+  mutate(n = replace_na(n, 0),
+         day_of_week = wday(occur_date, label = TRUE))
+
+# Preview the result
+head(incident_daily)
+```
+
+### Day Of Week Pattern Analysis
+  
+```{r time_plot}
+ggplot(incident_daily, aes(x = day_of_week, y = n)) +
+  geom_boxplot(fill = "lightblue") +
+  labs(
+    title = "Shooting Incidents by Day of the Week (Unique Incidents)",
+    x = "Day of the Week",
+    y = "Number of Unique Incidents"
+  ) +
+  theme_minimal()
+```
+The boxplot reveals higher incidence rates on weekends compared to weekdays. Let's test if it is a significant difference.
+
+### Statistical Significance Test
+``` {r anova_test_of_signifcants}
+# One-way ANOVA: Does day of week affect number of incidents?
+anova_result <- aov(n ~ day_of_week, data = incident_daily)
+summary(anova_result)
+```
+
+The p-value is less than 0.05, we can conclude that the day of the week has a **significant** effect on the probability of an incident occurring. 
+
+### Weekly Forecasting Model
+```{r arima_plot}
+library(forecast)
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(zoo)
+
+# Step 1: Aggregate by month
+monthly_incidents <- incident_daily %>%
+  mutate(month = floor_date(occur_date, "month")) %>%
+  group_by(month) %>%
+  summarise(incidents = sum(n), .groups = "drop") %>%
+  arrange(month)
+
+# Step 2: Create monthly time series object
+incident_ts_monthly <- ts(monthly_incidents$incidents,
+                          start = c(year(min(monthly_incidents$month)), month(min(monthly_incidents$month))),
+                          frequency = 12)  # 12 months per year
+
+# Step 3: Fit ARIMA and forecast
+model_monthly <- auto.arima(incident_ts_monthly, seasonal = TRUE)
+forecast_monthly <- forecast(model_monthly, h = 6)
+
+# Step 4: Detect peaks using rolling average
+monthly_incidents <- monthly_incidents %>%
+  mutate(roll_mean = rollmean(incidents, 3, fill = NA, align = "center"),
+         is_peak = if_else(
+           !is.na(roll_mean) &
+             lag(roll_mean, 1) < roll_mean &
+             lead(roll_mean, 1) < roll_mean,
+           TRUE, FALSE),
+         label = if_else(is_peak, format(month, "%b %Y"), NA_character_))
+
+# Step 5: Prepare forecast as data frame
+forecast_df <- data.frame(
+  month = seq(max(monthly_incidents$month) + months(1), by = "month", length.out = 6),
+  forecast = as.numeric(forecast_monthly$mean),
+  lower = as.numeric(forecast_monthly$lower[, 2]),
+  upper = as.numeric(forecast_monthly$upper[, 2])
+)
+
+# Step 6: Plot
+ggplot() +
+  geom_line(data = monthly_incidents, aes(x = month, y = incidents), color = "black") +
+  geom_line(data = forecast_df, aes(x = month, y = forecast), color = "blue") +
+  geom_ribbon(data = forecast_df, aes(x = month, ymin = lower, ymax = upper), alpha = 0.2, fill = "blue") +
+  geom_point(data = monthly_incidents %>% filter(is_peak), aes(x = month, y = incidents), color = "red", size = 2) +
+  geom_text(data = monthly_incidents %>% filter(is_peak),
+            aes(x = month, y = incidents, label = label),
+            vjust = -0.7, angle = 45, size = 3.2, check_overlap = TRUE) +
+  labs(title = "Forecast of Monthly Shooting Incidents in NYC (Peak Months Labeled)",
+       x = "Month", y = "Number of Incidents") +
+  theme_minimal()
+```
+The time series model reveals clear long-term trends where incidents are historically peaks during summer months. also shows that incident occurrences are expected to rise for the next couple of weeks if they follow the historical pattern.
+  
+## Summary
+### Key Findings
+  - Young Adults (18-44) represent the majority of victims
+  - Recorded male victims drastically outnumber female victims
+  - Incidents occurred on weekends more than on weekdays.
+  - Day of the week patterns are statistically significant.
+  - The time series forecasting model shows the continuation of rising historical trends. 
+  
+### Potential Bias Consideration
+  - Data quality issues with unknown/missing demographic information.
+  - Reporting bias may exist within certain areas or neighborhoods.
+  - Historical data may not consider policy or social changes over the years.
+  - The model assumes that past patterns will continue regardless of unaccounted-for future unknown external factors.
+
+This analysis can help create preventive measures to control shooting incidents in NYC.
+  
+  
+  
+  
+  
