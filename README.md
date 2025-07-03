@@ -3,10 +3,9 @@
 This project explores historic NYC shooting data to uncover actionable patterns in gun violence.
 
 ## Files
-- `Shooting-in-NYPD.Rmd`: Full analysis (RMarkdown)
-- `Shooting-NYPD-Data-Analysis.pptx`: Final presentation
-- `output/final_report.html`: Knitted report
-- `data/`: Folder for raw or cleaned data
+- [Shooting-in-NYPD.Rmd](Shooting-in-NYPD.Rmd) - Full analysis (rmd)
+- [Shooting-NYPD-Data-Analysis.pptx](Shooting-NYPD-Data-Analysis.pptx) Final presentation (ppt)
+- [Shooting-in-NYPD.html](Shooting-in-NYPD.hrml): Knitted report (html)
 
 ## Insights
 1. Most victims are men aged 18–44
@@ -22,10 +21,11 @@ library(forecast)
 library(ggplot2)
 ```
 ## Data Source
-- NYPD Shooting Incident Data (Historic)
+- [NYPD Shooting Incident Data (Historic)](https://catalog.data.gov/dataset/nypd-shooting-incident-data-historic)
 
 ## Presentation
 - The presentation video walks through the findings in 10 minutes.
+- [Click to watch the 10-minute video](linkhere)
 
 ## Instructions
 - To reproduce the report:
