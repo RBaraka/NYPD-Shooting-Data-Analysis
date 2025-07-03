@@ -5,7 +5,7 @@ This project explores historic NYC shooting data to uncover actionable patterns 
 ## Files
 - [Shooting-in-NYPD.Rmd](Shooting-in-NYPD.Rmd) - Full analysis (rmd)
 - [Shooting-NYPD-Data-Analysis.pptx](Shooting-NYPD-Data-Analysis.pptx) Final presentation (ppt)
-- [Shooting-in-NYPD.html](Shooting-in-NYPD.hrml): Knitted report (html)
+- [Shooting-in-NYPD.html](Shooting-in-NYPD.html): Knitted report (html)
 
 ## Insights
 1. Most victims are men aged 18–44
