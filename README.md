@@ -25,7 +25,7 @@ library(ggplot2)
 
 ## Presentation
 - The presentation video walks through the findings in 10 minutes.
-- [Click to watch the 10-minute video](linkhere)
+- [Click to watch the 10-minute video](https://drive.google.com/file/d/1TN8JhEs645gLDbcmJjAwyRZK27k9DjAc/view?usp=sharing)
 
 ## Instructions
 - To reproduce the report:
